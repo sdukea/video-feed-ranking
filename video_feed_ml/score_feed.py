@@ -43,11 +43,16 @@ def fetch_all_videos(client: Client) -> list[dict]:
     return response.data
 
 
-def fetch_active_user_ids(client: Client) -> list[str]:
-    """Users who've interacted at all in the last 30 days, plus anyone with
-    zero interactions gets picked up by the cold-start path in the app
-    itself (backend's fallback), so we don't need to compute for them here."""
-    response = client.table("interactions").select("user_id").execute()
+from datetime import datetime, timezone, timedelta
+
+def fetch_active_user_ids(client: Client, days: int = 30) -> list[str]:
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    response = (
+        client.table("interactions")
+        .select("user_id")
+        .gte("created_at", cutoff)
+        .execute()
+    )
     return list({row["user_id"] for row in response.data})
 
 
